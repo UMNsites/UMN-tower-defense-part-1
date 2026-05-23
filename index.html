@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🍈 UMN Tower Defense</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Boogaloo&family=Share+Tech+Mono&family=Nunito:wght@400;700;900&display=swap');
+
+:root {
+  --green: #2ecc71;
+  --dark-green: #1a6b3a;
+  --red: #e74c3c;
+  --yellow: #f1c40f;
+  --melon: #f4875a;
+  --bg: #0d1f0f;
+  --panel: #0a1a0c;
+  --border: #1e4d22;
+  --text: #d4f5dc;
+  --dim: #5a8a5e;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Nunito', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow-x: hidden;
+  user-select: none;
+}
+
+/* HEADER */
+.hdr {
+  width: 100%;
+  background: var(--panel);
+  border-bottom: 2px solid var(--border);
+  padding: 0.5rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.hdr-title {
+  font-family: 'Boogaloo', cursive;
+  font-size: 1.4rem;
+  color: var(--yellow);
+  text-shadow: 0 0 12px rgba(241,196,15,0.4);
+  letter-spacing: 1px;
+}
+.hdr-stats {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.stat {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.85rem;
+}
+.stat-val {
+  font-weight: 900;
+  color: var(--yellow);
+}
+.stat-hp .stat-val { color: #ff6b6b; }
+.stat-wave .stat-val { color: var(--green); }
+
+/* LAYOUT */
+.game-wrap {
+  display: flex;
+  width: 100%;
+  max-width: 1100px;
+  gap: 0.8rem;
+  padding: 0.8rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* CANVAS */
+.canvas-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+#gameCanvas {
+  display: block;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  background: #0f2a12;
+  cursor: crosshair;
+}
+.canvas-wrap:after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  box-shadow: inset 0 0 40px rgba(0,0,0,0.6), 0 0 30px rgba(46,204,113,0.1);
+  pointer-events: none;
+}
+
+/* SIDE PANEL */
+.side {
+  width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  flex-shrink: 0;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.8rem;
+}
+.panel-title {
+  font-family: 'Boogaloo', cursive;
+  font-size: 1rem;
+  color: var(--green);
+  letter-spacing: 1px;
+  margin-bottom: 0.6rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.4rem;
+}
+
+/* TOWER BUTTONS */
+.tower-btn {
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  border-radius: 7px;
+  border: 2px solid transparent;
+  background: rgba(46,204,113,0.08);
+  color: var(--text);
+  font-family: 'Nunito', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+  transition: all 0.15s;
+  text-align: left;
+}
+.tower-btn:hover { background: rgba(46,204,113,0.18); border-color: var(--green); }
+.tower-btn.selected { border-color: var(--yellow); background: rgba(241,196,15,0.12); }
+.tower-btn .t-icon { font-size: 1.3rem; flex-shrink: 0; }
+.tower-btn .t-info { flex: 1; }
+.tower-btn .t-name { color: var(--yellow); font-size: 0.85rem; }
+.tower-btn .t-cost { color: var(--dim); font-size: 0.75rem; font-family: 'Share Tech Mono', monospace; }
+.tower-btn.cant-afford { opacity: 0.4; cursor: not-allowed; }
+
+/* WAVE BTN */
+.wave-btn {
+  width: 100%;
+  padding: 0.7rem;
+  background: linear-gradient(135deg, var(--dark-green), #0d3d1a);
+  border: 2px solid var(--green);
+  border-radius: 8px;
+  color: #fff;
+  font-family: 'Boogaloo', cursive;
+  font-size: 1.1rem;
+  cursor: pointer;
+  letter-spacing: 1px;
+  transition: all 0.2s;
+  box-shadow: 0 0 16px rgba(46,204,113,0.2);
+}
+.wave-btn:hover:not(:disabled) { box-shadow: 0 0 24px rgba(46,204,113,0.4); transform: translateY(-1px); }
+.wave-btn:disabled { opacity: 0.4; cursor: not-allowed; border-color: var(--dim); }
+
+/* SELL BTN */
+.sell-btn {
+  width: 100%;
+  padding: 0.5rem;
+  background: rgba(231,76,60,0.1);
+  border: 1px solid var(--red);
+  border-radius: 7px;
+  color: #ff8a80;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 700;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: none;
+}
+.sell-btn:hover { background: rgba(231,76,60,0.25); }
+
+/* LOG */
+.log {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--dim);
+  line-height: 1.7;
+  max-height: 100px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.log .log-good { color: var(--green); }
+.log .log-bad { color: #ff6b6b; }
+.log .log-wave { color: var(--yellow); }
+
+/* OVERLAY */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  backdrop-filter: blur(4px);
+}
+.overlay-box {
+  background: var(--panel);
+  border: 2px solid var(--border);
+  border-radius: 16px;
+  padding: 2rem 2.5rem;
+  text-align: center;
+  max-width: 420px;
+  animation: popIn 0.4s cubic-bezier(0.34,1.56,0.64,1);
+}
+@keyframes popIn {
+  from { transform: scale(0.7); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+.overlay-emoji { font-size: 4rem; display: block; margin-bottom: 0.5rem; }
+.overlay-title {
+  font-family: 'Boogaloo', cursive;
+  font-size: 2rem;
+  color: var(--yellow);
+  text-shadow: 2px 2px 0 #7a5c00;
+  margin-bottom: 0.5rem;
+}
+.overlay-sub { color: var(--dim); font-size: 0.9rem; margin-bottom: 1.2rem; line-height: 1.6; }
+.overlay-btn {
+  padding: 0.8rem 2rem;
+  background: linear-gradient(135deg, var(--green), var(--dark-green));
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  font-family: 'Boogaloo', cursive;
+  font-size: 1.3rem;
+  cursor: pointer;
+  letter-spacing: 1px;
+  box-shadow: 0 4px 20px rgba(46,204,113,0.3);
+  transition: all 0.2s;
+  margin: 0.3rem;
+}
+.overlay-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(46,204,113,0.4); }
+.overlay-btn.red { background: linear-gradient(135deg, var(--red), #8e1a10); box-shadow: 0 4px 20px rgba(231,76,60,0.3); }
+
+.hidden { display: none !important; }
+
+/* SELECTED INFO */
+.sel-info { font-size: 0.8rem; color: var(--dim); line-height: 1.6; }
+.sel-info strong { color: var(--text); }
+
+/* Wave progress */
+.wave-bar-wrap {
+  background: rgba(255,255,255,0.06);
+  border-radius: 999px;
+  height: 6px;
+  margin-top: 0.4rem;
+  overflow: hidden;
+}
+.wave-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--green), var(--yellow));
+  border-radius: 999px;
+  transition: width 0.3s;
+}
+
+@media (max-width: 700px) {
+  .side { width: 100%; flex-direction: row; flex-wrap: wrap; }
+  .panel { flex: 1 1 160px; }
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="hdr">
+  <div class="hdr-title">🍈 UMN TOWER DEFENSE</div>
+  <div class="hdr-stats">
+    <div class="stat stat-hp">❤️ <span class="stat-val" id="hpVal">20</span> HP</div>
+    <div class="stat">🍈 <span class="stat-val" id="melonsVal">150</span> Melons</div>
+    <div class="stat stat-wave">🌊 Wave <span class="stat-val" id="waveVal">0</span></div>
+    <div class="stat">☠️ <span class="stat-val" id="killsVal">0</span> Defeated</div>
+  </div>
+</div>
+
+<!-- GAME -->
+<div class="game-wrap">
+  <div class="canvas-wrap">
+    <canvas id="gameCanvas" width="660" height="440"></canvas>
+  </div>
+
+  <div class="side">
+    <!-- TOWERS -->
+    <div class="panel">
+      <div class="panel-title">🏰 TOWERS</div>
+      <button class="tower-btn" id="tbtn-melon" onclick="selectTower('melon')">
+        <span class="t-icon">🍈</span>
+        <div class="t-info">
+          <div class="t-name">Melon Launcher</div>
+          <div class="t-cost">💰 50 · Basic · Fast</div>
+        </div>
+      </button>
+      <button class="tower-btn" id="tbtn-badger" onclick="selectTower('badger')">
+        <span class="t-icon">🦡</span>
+        <div class="t-info">
+          <div class="t-name">Honey Badger</div>
+          <div class="t-cost">💰 80 · Slow · High dmg</div>
+        </div>
+      </button>
+      <button class="tower-btn" id="tbtn-star" onclick="selectTower('star')">
+        <span class="t-icon">⭐</span>
+        <div class="t-info">
+          <div class="t-name">Founding Star</div>
+          <div class="t-cost">💰 120 · Splash dmg</div>
+        </div>
+      </button>
+      <button class="tower-btn" id="tbtn-menarch" onclick="selectTower('menarch')">
+        <span class="t-icon">👑</span>
+        <div class="t-info">
+          <div class="t-name">The Great Menarch</div>
+          <div class="t-cost">💰 220 · LEGEND</div>
+        </div>
+      </button>
+      <button class="sell-btn" id="sellBtn" onclick="sellSelected()">💸 SELL TOWER</button>
+    </div>
+
+    <!-- SELECTED -->
+    <div class="panel" id="selPanel">
+      <div class="panel-title">📋 INFO</div>
+      <div class="sel-info" id="selInfo">Click a tile to place a tower.<br>Click a placed tower to select it.</div>
+    </div>
+
+    <!-- WAVE -->
+    <div class="panel">
+      <div class="panel-title">🌊 WAVE CONTROL</div>
+      <button class="wave-btn" id="waveBtn" onclick="startWave()">▶ SEND WAVE</button>
+      <div class="wave-bar-wrap"><div class="wave-bar-fill" id="waveBar" style="width:0%"></div></div>
+      <div style="font-size:0.72rem;color:var(--dim);margin-top:0.4rem;font-family:'Share Tech Mono',monospace" id="waveStatus">Ready for Wave 1</div>
+    </div>
+
+    <!-- LOG -->
+    <div class="panel">
+      <div class="panel-title">📰 UMN DISPATCH</div>
+      <div class="log" id="log">Awaiting orders from the Menarch…</div>
+    </div>
+  </div>
+</div>
+
+<!-- START OVERLAY -->
+<div class="overlay" id="startOverlay">
+  <div class="overlay-box">
+    <span class="overlay-emoji">🍈</span>
+    <div class="overlay-title">DEFEND THE MELONS!</div>
+    <div class="overlay-sub">
+      Wales has launched an invasion of the United Melon Nations!<br><br>
+      Place towers on the <strong style="color:var(--green)">green tiles</strong> to defend the melon fields.<br>
+      Enemies march along the <strong style="color:#c8a800">golden path</strong>.<br>
+      Don't let them reach the Melon Capital! 🏛️<br><br>
+      <strong>The Great Menarch Macsen Jones is counting on you.</strong>
+    </div>
+    <button class="overlay-btn" onclick="closeStart()">🍈 DEFEND THE NATION!</button>
+  </div>
+</div>
+
+<!-- GAME OVER -->
+<div class="overlay hidden" id="gameOverOverlay">
+  <div class="overlay-box">
+    <span class="overlay-emoji">💀</span>
+    <div class="overlay-title">THE MELONS FELL</div>
+    <div class="overlay-sub" id="gameOverMsg">The invaders breached the capital. The Great Menarch has fled to an undisclosed melon.</div>
+    <button class="overlay-btn" onclick="location.reload()">🔄 Try Again</button>
+  </div>
+</div>
+
+<!-- VICTORY -->
+<div class="overlay hidden" id="victoryOverlay">
+  <div class="overlay-box">
+    <span class="overlay-emoji">👑</span>
+    <div class="overlay-title">UMN VICTORIOUS!</div>
+    <div class="overlay-sub" id="victoryMsg">The Great Menarch Macsen Jones has declared total melon supremacy. Melon Toe Pens rings across all 11 properties!</div>
+    <button class="overlay-btn" onclick="location.reload()">🍈 Play Again</button>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+const COLS = 22, ROWS = 14;
+const TW = Math.floor(W / COLS), TH = Math.floor(H / ROWS);
+
+// PATH waypoints (col, row)
+const PATH_WAYPOINTS = [
+  [0,4],[3,4],[3,2],[7,2],[7,6],[5,6],[5,10],[10,10],[10,7],[14,7],[14,11],[18,11],[18,5],[21,5]
+];
+
+// Build path cells
+function buildPath(wps) {
+  const cells = new Set();
+  const arr = [];
+  for (let i = 0; i < wps.length - 1; i++) {
+    let [c0,r0] = wps[i], [c1,r1] = wps[i+1];
+    let dc = Math.sign(c1-c0), dr = Math.sign(r1-r0);
+    let c = c0, r = r0;
+    while (c !== c1 || r !== r1) {
+      cells.add(`${c},${r}`);
+      arr.push([c, r]);
+      c += dc; r += dr;
+    }
+  }
+  cells.add(`${wps[wps.length-1][0]},${wps[wps.length-1][1]}`);
+  arr.push(wps[wps.length-1]);
+  return { cells, arr };
+}
+const { cells: pathCells, arr: pathArr } = buildPath(PATH_WAYPOINTS);
+
+// World-space path points
+const pathPoints = pathArr.map(([c,r]) => [c*TW + TW/2, r*TH + TH/2]);
+
+// TOWER DEFS
+const TOWER_DEFS = {
+  melon:   { name:'Melon Launcher', icon:'🍈', cost:50,  dmg:8,  range:2.5, rate:1.2,  splash:0,   color:'#2ecc71', sell:25 },
+  badger:  { name:'Honey Badger',   icon:'🦡', cost:80,  dmg:22, range:2.0, rate:0.5,  splash:0,   color:'#f4875a', sell:40 },
+  star:    { name:'Founding Star',  icon:'⭐', cost:120, dmg:12, range:3.0, rate:0.9,  splash:1.2, color:'#f1c40f', sell:60 },
+  menarch: { name:'Great Menarch',  icon:'👑', cost:220, dmg:40, range:3.5, rate:0.7,  splash:1.8, color:'#e056fd', sell:110},
+};
+
+// ENEMY DEFS
+const ENEMY_TYPES = [
+  { name:'Welsh Scout',    icon:'🏃', hp:40,  spd:1.4, reward:8,  color:'#e74c3c', size:10 },
+  { name:'Rind Raider',   icon:'🛡️', hp:100, spd:0.9, reward:15, color:'#e67e22', size:13 },
+  { name:'Melon Thief',   icon:'🧳', hp:70,  spd:1.8, reward:12, color:'#9b59b6', size:11 },
+  { name:'Heavy Lad',     icon:'🪖', hp:200, spd:0.6, reward:25, color:'#c0392b', size:15 },
+  { name:'Speed Runner',  icon:'⚡', hp:50,  spd:2.8, reward:18, color:'#1abc9c', size:9  },
+  { name:'Boss: Anti-Melon General', icon:'💀', hp:600, spd:0.8, reward:80, color:'#8e44ad', size:18 },
+];
+
+// WAVE DEFINITIONS
+const WAVES = [
+  [{type:0,count:6,interval:1200}],
+  [{type:0,count:5,interval:1000},{type:1,count:3,interval:1500}],
+  [{type:0,count:8,interval:900},{type:2,count:4,interval:1200}],
+  [{type:1,count:5,interval:1000},{type:3,count:2,interval:2000}],
+  [{type:0,count:10,interval:700},{type:2,count:5,interval:900},{type:4,count:3,interval:1100}],
+  [{type:3,count:4,interval:1200},{type:4,count:6,interval:800}],
+  [{type:0,count:12,interval:600},{type:1,count:6,interval:900},{type:2,count:6,interval:900}],
+  [{type:3,count:6,interval:900},{type:4,count:8,interval:700},{type:2,count:5,interval:800}],
+  [{type:5,count:1,interval:3000},{type:1,count:8,interval:800},{type:3,count:4,interval:1000}],
+  [{type:5,count:2,interval:2500},{type:4,count:10,interval:600},{type:3,count:5,interval:900}],
+];
+
+// STATE
+let melons = 150, hp = 20, wave = 0, kills = 0;
+let towers = [], enemies = [], bullets = [], particles = [];
+let selectedType = null, selectedTower = null;
+let waveActive = false, waveQueue = [], spawnTimers = [];
+let lastTime = 0, running = true;
+
+// Log
+function log(msg, cls='') {
+  const el = document.getElementById('log');
+  el.innerHTML = `<span class="${cls}">${msg}</span><br>` + el.innerHTML;
+  const lines = el.innerHTML.split('<br>');
+  if (lines.length > 18) el.innerHTML = lines.slice(0, 18).join('<br>');
+}
+
+// Stat update
+function updateStats() {
+  document.getElementById('hpVal').textContent = hp;
+  document.getElementById('melonsVal').textContent = melons;
+  document.getElementById('waveVal').textContent = wave;
+  document.getElementById('killsVal').textContent = kills;
+  // affordability
+  for (const [k, def] of Object.entries(TOWER_DEFS)) {
+    const btn = document.getElementById(`tbtn-${k}`);
+    btn.classList.toggle('cant-afford', melons < def.cost);
+  }
+}
+
+function closeStart() {
+  document.getElementById('startOverlay').classList.add('hidden');
+  log('🍈 Defend the Melon Fields!', 'log-wave');
+}
+
+// TOWER SELECTION
+function selectTower(type) {
+  selectedType = type;
+  selectedTower = null;
+  document.querySelectorAll('.tower-btn').forEach(b => b.classList.remove('selected'));
+  document.getElementById(`tbtn-${type}`).classList.add('selected');
+  document.getElementById('sellBtn').style.display = 'none';
+  const d = TOWER_DEFS[type];
+  document.getElementById('selInfo').innerHTML = 
+    `<strong>${d.icon} ${d.name}</strong><br>Cost: 🍈 ${d.cost}<br>Dmg: ${d.dmg} · Range: ${d.range} tiles<br>Rate: ${d.rate}/s${d.splash>0?`<br>Splash: ${d.splash} tiles`:''}`;
+}
+
+function clickTower(t) {
+  selectedType = null;
+  selectedTower = t;
+  document.querySelectorAll('.tower-btn').forEach(b => b.classList.remove('selected'));
+  const d = TOWER_DEFS[t.type];
+  document.getElementById('sellBtn').style.display = 'block';
+  document.getElementById('sellBtn').textContent = `💸 SELL (+${d.sell} 🍈)`;
+  document.getElementById('selInfo').innerHTML =
+    `<strong>${d.icon} ${d.name}</strong><br>Dmg: ${d.dmg} · Range: ${d.range}<br>Rate: ${d.rate}/s<br>Kills: ${t.kills}`;
+}
+
+function sellSelected() {
+  if (!selectedTower) return;
+  const d = TOWER_DEFS[selectedTower.type];
+  melons += d.sell;
+  towers = towers.filter(t => t !== selectedTower);
+  selectedTower = null;
+  document.getElementById('sellBtn').style.display = 'none';
+  document.getElementById('selInfo').innerHTML = 'Tower sold!';
+  log(`💸 Sold for ${d.sell} 🍈`, 'log-good');
+  updateStats();
+}
+
+// CANVAS CLICK
+canvas.addEventListener('click', e => {
+  const rect = canvas.getBoundingClientRect();
+  const mx = (e.clientX - rect.left) * (W / rect.width);
+  const my = (e.clientY - rect.top) * (H / rect.height);
+  const col = Math.floor(mx / TW), row = Math.floor(my / TH);
+  const key = `${col},${row}`;
+
+  // Click on existing tower?
+  const hit = towers.find(t => t.col === col && t.row === row);
+  if (hit) { clickTower(hit); return; }
+
+  // Place tower
+  if (selectedType) {
+    if (pathCells.has(key)) { log('❌ Can\'t place on path!', 'log-bad'); return; }
+    const def = TOWER_DEFS[selectedType];
+    if (melons < def.cost) { log('❌ Not enough melons!', 'log-bad'); return; }
+    towers.push({ type: selectedType, col, row, x: col*TW+TW/2, y: row*TH+TH/2, cooldown: 0, kills: 0 });
+    melons -= def.cost;
+    log(`🏰 Placed ${def.icon} ${def.name}`, 'log-good');
+    updateStats();
+    return;
+  }
+
+  // Deselect
+  selectedTower = null;
+  document.getElementById('sellBtn').style.display = 'none';
+  document.getElementById('selInfo').innerHTML = 'Click a tile to place a tower.<br>Click a placed tower to select it.';
+});
+
+// WAVE
+function startWave() {
+  if (waveActive || wave >= WAVES.length) return;
+  wave++;
+  waveActive = true;
+  document.getElementById('waveBtn').disabled = true;
+  document.getElementById('waveStatus').textContent = `Wave ${wave} incoming!`;
+  log(`🌊 WAVE ${wave} BEGINS!`, 'log-wave');
+  updateStats();
+
+  const groups = WAVES[wave - 1];
+  let totalSpawned = 0;
+  let totalToSpawn = groups.reduce((a, g) => a + g.count, 0);
+  waveQueue = [];
+
+  let delay = 0;
+  for (const grp of groups) {
+    for (let i = 0; i < grp.count; i++) {
+      const et = ENEMY_TYPES[grp.type];
+      const t = delay;
+      waveQueue.push(setTimeout(() => {
+        spawnEnemy(et);
+        totalSpawned++;
+        if (totalSpawned >= totalToSpawn) {
+          // last enemy spawned, wait for all to die
+          waitForWaveEnd();
+        }
+      }, t));
+      delay += grp.interval;
+    }
+    delay += 500;
+  }
+}
+
+function waitForWaveEnd() {
+  const check = setInterval(() => {
+    if (enemies.length === 0 && waveActive) {
+      clearInterval(check);
+      waveActive = false;
+      if (wave >= WAVES.length) {
+        victory();
+      } else {
+        document.getElementById('waveBtn').disabled = false;
+        document.getElementById('waveStatus').textContent = `Ready for Wave ${wave+1}`;
+        melons += 30 + wave * 10;
+        log(`✅ Wave ${wave} cleared! +${30 + wave*10} 🍈`, 'log-good');
+        updateStats();
+      }
+    }
+  }, 500);
+}
+
+function spawnEnemy(et) {
+  const [sx, sy] = pathPoints[0];
+  enemies.push({
+    et, hp: et.hp, maxHp: et.hp,
+    pathIdx: 0, progress: 0,
+    x: sx, y: sy,
+    color: et.color, size: et.size,
+    id: Math.random()
+  });
+}
+
+// GAME OVER / VICTORY
+function gameOver() {
+  running = false;
+  document.getElementById('gameOverMsg').textContent = 
+    `Wave ${wave} · ${kills} enemies defeated · The Great Menarch has evacuated on a honey badger.`;
+  document.getElementById('gameOverOverlay').classList.remove('hidden');
+}
+
+function victory() {
+  running = false;
+  document.getElementById('victoryMsg').textContent = 
+    `All ${WAVES.length} waves repelled! ${kills} invaders defeated. The national anthem "Melon Toe Pens" plays forever.`;
+  document.getElementById('victoryOverlay').classList.remove('hidden');
+}
+
+// DRAWING
+function drawGrid() {
+  ctx.strokeStyle = 'rgba(46,204,113,0.06)';
+  ctx.lineWidth = 0.5;
+  for (let c = 0; c <= COLS; c++) { ctx.beginPath(); ctx.moveTo(c*TW,0); ctx.lineTo(c*TW,H); ctx.stroke(); }
+  for (let r = 0; r <= ROWS; r++) { ctx.beginPath(); ctx.moveTo(0,r*TH); ctx.lineTo(W,r*TH); ctx.stroke(); }
+}
+
+function drawPath() {
+  // Dirt path
+  ctx.save();
+  ctx.fillStyle = 'rgba(200,168,0,0.18)';
+  for (const key of pathCells) {
+    const [c, r] = key.split(',').map(Number);
+    ctx.fillRect(c*TW+1, r*TH+1, TW-2, TH-2);
+  }
+  // Path line
+  ctx.strokeStyle = 'rgba(241,196,15,0.3)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([6,4]);
+  ctx.beginPath();
+  pathPoints.forEach(([x,y],i) => i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y));
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+
+  // Start / End markers
+  const [sx,sy] = pathPoints[0];
+  const [ex,ey] = pathPoints[pathPoints.length-1];
+  ctx.save();
+  ctx.font = `${TH-2}px serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('🏴', sx, sy);
+  ctx.fillText('🏛️', ex, ey);
+  ctx.restore();
+}
+
+function drawTowers(dt) {
+  for (const t of towers) {
+    const def = TOWER_DEFS[t.type];
+    const cx = t.x, cy = t.y;
+
+    // Base
+    ctx.save();
+    ctx.fillStyle = selectedTower === t ? 'rgba(241,196,15,0.25)' : 'rgba(10,40,14,0.9)';
+    ctx.strokeStyle = selectedTower === t ? '#f1c40f' : def.color;
+    ctx.lineWidth = selectedTower === t ? 2 : 1.5;
+    ctx.beginPath();
+    ctx.roundRect(t.col*TW+2, t.row*TH+2, TW-4, TH-4, 4);
+    ctx.fill(); ctx.stroke();
+    ctx.restore();
+
+    // Range ring on hover (drawn for selected)
+    if (selectedTower === t) {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(241,196,15,0.2)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4,4]);
+      ctx.beginPath();
+      ctx.arc(cx, cy, def.range * TW, 0, Math.PI*2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+
+    // Icon
+    ctx.save();
+    ctx.font = `${TH * 0.65}px serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(def.icon, cx, cy);
+    ctx.restore();
+
+    // Shoot
+    t.cooldown -= dt;
+    if (t.cooldown <= 0) {
+      const rangePixels = def.range * TW;
+      // Find target (first enemy in range)
+      let target = null, bestDist = Infinity;
+      for (const en of enemies) {
+        const dx = en.x - cx, dy = en.y - cy;
+        const dist = Math.sqrt(dx*dx+dy*dy);
+        if (dist <= rangePixels && en.pathIdx < bestDist) {
+          // pick furthest along path
+          if (en.pathIdx > (target ? target.pathIdx : -1)) target = en;
+        }
+      }
+      if (target) {
+        t.cooldown = 1000 / def.rate;
+        fireBullet(t, target, def);
+      }
+    }
+  }
+}
+
+function fireBullet(tower, target, def) {
+  bullets.push({
+    x: tower.x, y: tower.y,
+    tx: target.x, ty: target.y,
+    targetId: target.id,
+    spd: 5, dmg: def.dmg, splash: def.splash,
+    color: def.color, towerRef: tower,
+    r: def.splash > 0 ? 5 : 3
+  });
+}
+
+function updateBullets(dt) {
+  for (let i = bullets.length - 1; i >= 0; i--) {
+    const b = bullets[i];
+    // Track live target
+    const tgt = enemies.find(e => e.id === b.targetId);
+    if (tgt) { b.tx = tgt.x; b.ty = tgt.y; }
+    const dx = b.tx - b.x, dy = b.ty - b.y;
+    const dist = Math.sqrt(dx*dx+dy*dy);
+    if (dist < b.spd * 2) {
+      // Hit
+      if (b.splash > 0) {
+        const splashPx = b.splash * TW;
+        for (const en of enemies) {
+          const d2 = Math.hypot(en.x - b.tx, en.y - b.ty);
+          if (d2 <= splashPx) {
+            en.hp -= b.dmg * (1 - d2 / splashPx * 0.5);
+          }
+        }
+        spawnParticles(b.tx, b.ty, b.color, 10);
+      } else {
+        if (tgt) tgt.hp -= b.dmg;
+        spawnParticles(b.tx, b.ty, b.color, 5);
+      }
+      bullets.splice(i, 1);
+    } else {
+      b.x += (dx/dist)*b.spd * (dt/16);
+      b.y += (dy/dist)*b.spd * (dt/16);
+    }
+  }
+  // Cull dead enemies
+  for (let i = enemies.length - 1; i >= 0; i--) {
+    if (enemies[i].hp <= 0) {
+      const en = enemies[i];
+      melons += en.et.reward;
+      kills++;
+      // Credit tower kill
+      // find closest tower bullet
+      spawnParticles(en.x, en.y, en.et.color, 12);
+      log(`☠️ ${en.et.icon} ${en.et.name} defeated! +${en.et.reward}🍈`, 'log-good');
+      enemies.splice(i, 1);
+      updateStats();
+    }
+  }
+}
+
+function drawBullets() {
+  for (const b of bullets) {
+    ctx.save();
+    ctx.fillStyle = b.color;
+    ctx.shadowBlur = 8;
+    ctx.shadowColor = b.color;
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, b.r, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+function updateEnemies(dt) {
+  const speed = dt / 1000;
+  for (const en of enemies) {
+    if (en.pathIdx >= pathPoints.length - 1) {
+      // Reached end
+      hp--;
+      log(`💥 ${en.et.icon} reached the capital! -1 HP`, 'log-bad');
+      enemies.splice(enemies.indexOf(en), 1);
+      updateStats();
+      if (hp <= 0) { gameOver(); return; }
+      continue;
+    }
+    const [tx, ty] = pathPoints[en.pathIdx + 1];
+    const dx = tx - en.x, dy = ty - en.y;
+    const dist = Math.sqrt(dx*dx+dy*dy);
+    const moveAmt = en.et.spd * 60 * speed;
+    if (dist < moveAmt) {
+      en.x = tx; en.y = ty;
+      en.pathIdx++;
+    } else {
+      en.x += (dx/dist) * moveAmt;
+      en.y += (dy/dist) * moveAmt;
+    }
+  }
+}
+
+function drawEnemies() {
+  for (const en of enemies) {
+    ctx.save();
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.beginPath();
+    ctx.ellipse(en.x, en.y + en.size + 2, en.size * 0.7, 3, 0, 0, Math.PI*2);
+    ctx.fill();
+    // Body circle
+    ctx.fillStyle = en.color;
+    ctx.shadowBlur = 8;
+    ctx.shadowColor = en.color;
+    ctx.beginPath();
+    ctx.arc(en.x, en.y, en.size, 0, Math.PI*2);
+    ctx.fill();
+    // Icon
+    ctx.shadowBlur = 0;
+    ctx.font = `${en.size * 1.3}px serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(en.et.icon, en.x, en.y);
+    // HP bar
+    const bw = en.size * 2.5, bh = 3;
+    const bx = en.x - bw/2, by = en.y - en.size - 6;
+    ctx.fillStyle = '#333';
+    ctx.fillRect(bx, by, bw, bh);
+    ctx.fillStyle = en.hp > en.maxHp*0.5 ? '#2ecc71' : en.hp > en.maxHp*0.25 ? '#f1c40f' : '#e74c3c';
+    ctx.fillRect(bx, by, bw * (en.hp/en.maxHp), bh);
+    ctx.restore();
+  }
+}
+
+// Particles
+function spawnParticles(x, y, color, n) {
+  for (let i = 0; i < n; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const spd = 1 + Math.random() * 3;
+    particles.push({ x, y, vx: Math.cos(angle)*spd, vy: Math.sin(angle)*spd, life: 1, color, r: 2+Math.random()*2 });
+  }
+}
+function updateParticles(dt) {
+  const decay = dt / 400;
+  for (let i = particles.length-1; i>=0; i--) {
+    const p = particles[i];
+    p.x += p.vx; p.y += p.vy; p.vy += 0.1;
+    p.life -= decay;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+}
+function drawParticles() {
+  for (const p of particles) {
+    ctx.save();
+    ctx.globalAlpha = p.life;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r * p.life, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+// Wave progress bar
+function updateWaveBar() {
+  const pct = WAVES.length > 0 ? (wave / WAVES.length) * 100 : 0;
+  document.getElementById('waveBar').style.width = pct + '%';
+}
+
+// MAIN LOOP
+function loop(ts) {
+  if (!running) return;
+  const dt = Math.min(ts - lastTime, 50);
+  lastTime = ts;
+
+  ctx.clearRect(0, 0, W, H);
+  drawGrid();
+  drawPath();
+  drawTowers(dt);
+  updateEnemies(dt);
+  drawEnemies();
+  updateBullets(dt);
+  drawBullets();
+  updateParticles(dt);
+  drawParticles();
+  updateWaveBar();
+
+  requestAnimationFrame(loop);
+}
+
+updateStats();
+requestAnimationFrame(ts => { lastTime = ts; loop(ts); });
+</script>
+</body>
+</html>
